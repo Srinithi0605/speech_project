@@ -1,13 +1,13 @@
 # actions.py
 
 import webbrowser
-import datetime
 import os
 import time
 import json
 import pyautogui
 import pyttsx3
 from difflib import get_close_matches
+from datetime import datetime
 
 engine = pyttsx3.init()
 
@@ -21,14 +21,7 @@ def speak(text):
     engine.runAndWait()
 
 
-def clean_query(text, words_to_remove):
-    text = text.lower()
-    for word in words_to_remove:
-        text = text.replace(word, "")
-    return text.strip()
-
-
-# 🔥 BUILD INDEX (ONE TIME)
+# 🔥 FILE INDEX
 def build_index():
     global FILE_INDEX
 
@@ -39,7 +32,7 @@ def build_index():
 
     speak("Indexing files, please wait")
 
-    for root, dirs, files in os.walk("C:\\Users"):  # faster than full C
+    for root, dirs, files in os.walk("C:\\Users"):
         for name in dirs + files:
             FILE_INDEX.append((name.lower(), os.path.join(root, name)))
 
@@ -93,12 +86,9 @@ def execute_action(command, raw_text=None):
     # 🎵 MUSIC
     if command == "music":
         speak("Opening Spotify")
-        try:
-            os.system("start spotify")
-            time.sleep(5)
-            pyautogui.press("space")
-        except Exception as e:
-            print("❌ Error:", e)
+        os.system("start spotify")
+        time.sleep(5)
+        pyautogui.press("space")
         return True
 
     # 🌐 GOOGLE
@@ -113,35 +103,27 @@ def execute_action(command, raw_text=None):
         speak("Opening YouTube")
         return True
 
-    # 🔥 OPEN ANYTHING (FIXED)
+    # 🔥 OPEN ANYTHING
     elif command == "open_app":
         if raw_text:
-            text = raw_text.lower()
-            name = text.replace("open", "").replace("folder", "").strip()
+            name = raw_text.replace("open", "").strip()
 
-            speak("Opening")
+            app_path = find_app(name)
+            if app_path:
+                os.startfile(app_path)
+                return True
 
-            try:
-                # ✅ 1. APP FIRST
-                app_path = find_app(name)
-                if app_path:
-                    os.startfile(app_path)
-                    return True
+            result = os.system(f'start "" "{name}"')
+            if result == 0:
+                return True
 
-                # ✅ 2. SYSTEM
-                result = os.system(f'start "" "{name}"')
-                if result == 0:
-                    return True
+            path = find_path(name)
+            if path:
+                os.startfile(path)
+                return True
 
-                # ✅ 3. FILE/FOLDER
-                path = find_path(name)
-                if path:
-                    os.startfile(path)
-                    return True
-
-            except Exception:
-                webbrowser.open(f"https://www.google.com/search?q={name}")
-                speak("Not found")
+            webbrowser.open(f"https://www.google.com/search?q={name}")
+            speak("Not found")
 
         return True
 
@@ -163,39 +145,21 @@ def execute_action(command, raw_text=None):
         speak("Muted")
         return True
 
-    # 🔋 SYSTEM
-    elif command == "shutdown":
-        speak("Shutting down")
-        os.system("shutdown /s /t 1")
-        return False
-
-    elif command == "restart":
-        speak("Restarting")
-        os.system("shutdown /r /t 1")
-        return False
-
-    elif command == "lock":
-        speak("Locking system")
-        os.system("rundll32.exe user32.dll,LockWorkStation")
-        return True
-
     # 📸 SCREENSHOT
     elif command == "screenshot":
-        from datetime import datetime
-
-        downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+        downloads = os.path.join(os.path.expanduser("~"), "Downloads")
         filename = f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-        full_path = os.path.join(downloads_path, filename)
+        path = os.path.join(downloads, filename)
 
-        screenshot = pyautogui.screenshot()
-        screenshot.save(full_path)
+        img = pyautogui.screenshot()
+        img.save(path)
 
-        speak("Screenshot taken and saved in downloads")
+        speak("Screenshot saved")
         return True
 
     # 🕒 TIME
     elif command == "time":
-        now = datetime.datetime.now().strftime("%I:%M %p")
+        now = datetime.now().strftime("%I:%M %p")
         speak(f"The time is {now}")
         return True
 
@@ -205,5 +169,5 @@ def execute_action(command, raw_text=None):
         return False
 
     else:
-        speak("I did not understand that")
+        speak("I did not understand")
         return True
