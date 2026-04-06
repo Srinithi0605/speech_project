@@ -1,17 +1,19 @@
 # main.py
 
 import pickle
+from scipy.sparse import hstack
 from speech_input import get_voice
 from actions import execute_action
 
 WAKE_WORD = "hey jarvis"
 
-# Load model
-with open("model.pkl", "rb") as f:
-    model = pickle.load(f)
+# 🔥 LOAD BOTH MODELS (ENSEMBLE)
+model_lr = pickle.load(open("model_lr.pkl", "rb"))
+model_svc = pickle.load(open("model_svc.pkl", "rb"))
 
-with open("vectorizer.pkl", "rb") as f:
-    vectorizer = pickle.load(f)
+# 🔥 LOAD VECTORIZERS
+word_vectorizer = pickle.load(open("word_vectorizer.pkl", "rb"))
+char_vectorizer = pickle.load(open("char_vectorizer.pkl", "rb"))
 
 print("🤖 Assistant is listening... Say 'Hey Jarvis'")
 
@@ -26,14 +28,14 @@ while True:
     command = command.lower()
     print("Heard:", command)
 
-    # 🔥 WAKE WORD DETECTION
+    # 🔥 WAKE WORD
     if not active:
         if WAKE_WORD in command:
             print("✅ Activated")
             active = True
         continue
 
-    # 🔥 EXIT WAKE MODE
+    # 🔥 SLEEP MODE
     if "sleep" in command or "go to sleep" in command:
         print("😴 Going to sleep...")
         active = False
@@ -41,22 +43,37 @@ while True:
 
     print("You said:", command)
 
-    # 🔮 ML prediction
-    X_test = vectorizer.transform([command])
-    prediction = model.predict(X_test)[0]
+    # =====================================================
+    # 🔥 RULE ENGINE (HIGH ACCURACY LAYER)
+    # =====================================================
 
-    # 🔥 minimal fallback (keep system stable)
-    if "mute" in command:
-        prediction = "mute"
+    if any(x in command for x in ["file explorer", "explorer"]):
+        prediction = "open_app"
+
+    elif "file manager" in command:
+        prediction = "files"
+
+    elif any(x in command for x in [
+        "settings", "control panel", "task manager",
+        "spotify", "whatsapp", "photos", "camera"
+    ]):
+        prediction = "open_app"
+
+    elif any(x in command for x in [
+        "downloads", "documents", "desktop"
+    ]):
+        prediction = "files"
 
     elif "volume" in command:
-        if "up" in command:
+        if "up" in command or "increase" in command:
             prediction = "volume_up"
-        elif "down" in command:
+        elif "down" in command or "decrease" in command:
             prediction = "volume_down"
+        else:
+            prediction = "volume_up"
 
-    elif "open" in command:
-        prediction = "open_app"
+    elif "mute" in command:
+        prediction = "mute"
 
     elif "screenshot" in command:
         prediction = "screenshot"
@@ -64,9 +81,34 @@ while True:
     elif "time" in command:
         prediction = "time"
 
+    elif "youtube" in command:
+        prediction = "youtube_search"
+
+    elif "google" in command or "search" in command:
+        prediction = "google_search"
+
+    else:
+        # =====================================================
+        # 🔮 ML ENSEMBLE (FINAL PREDICTION)
+        # =====================================================
+
+        X = hstack([
+            word_vectorizer.transform([command]),
+            char_vectorizer.transform([command])
+        ])
+
+        pred_lr = model_lr.predict(X)[0]
+        pred_svc = model_svc.predict(X)[0]
+
+        # 🔥 ENSEMBLE DECISION
+        if pred_lr == pred_svc:
+            prediction = pred_lr
+        else:
+            prediction = pred_lr  # Logistic is more stable
+
     print("Final command:", prediction)
 
-    # Execute action
+    # 🔥 EXECUTE ACTION
     run = execute_action(prediction, command)
 
     if not run:

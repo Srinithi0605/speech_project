@@ -14,6 +14,18 @@ engine = pyttsx3.init()
 FILE_INDEX = []
 INDEX_FILE = "file_index.json"
 
+# 🔥 UNIVERSAL APP MAP
+SPECIAL_APPS = {
+    "spotify": "spotify:",
+    "settings": "ms-settings:",
+    "photos": "ms-photos:",
+    "calculator": "calc",
+    "whatsapp": "whatsapp:",
+    "camera": "microsoft.windows.camera:",
+    "explorer": "explorer",
+    "file explorer": "explorer",
+}
+
 
 def speak(text):
     print("🤖", text)
@@ -46,7 +58,7 @@ def find_path(name):
     build_index()
 
     names = [item[0] for item in FILE_INDEX]
-    matches = get_close_matches(name.lower(), names, n=1, cutoff=0.4)
+    matches = get_close_matches(name.lower(), names, n=1, cutoff=0.6)
 
     if matches:
         for n, full_path in FILE_INDEX:
@@ -56,29 +68,29 @@ def find_path(name):
     return None
 
 
-def find_app(app_name):
-    start_menu_paths = [
-        r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs",
-        os.path.expandvars(r"%APPDATA%\Microsoft\Windows\Start Menu\Programs")
-    ]
+# 🔥 CLEAN TEXT
+def clean_name(text):
+    words = ["open", "my", "the", "folder", "app", "application"]
+    text = text.lower()
+    for w in words:
+        text = text.replace(w, "")
+    return text.strip()
 
-    app_list = []
 
-    for path in start_menu_paths:
-        for root, dirs, files in os.walk(path):
-            for file in files:
-                if file.endswith(".lnk"):
-                    app_list.append((file.lower(), os.path.join(root, file)))
+def clean_google_query(text):
+    words = ["search", "google", "find", "look up", "for"]
+    text = text.lower()
+    for w in words:
+        text = text.replace(w, "")
+    return text.strip()
 
-    names = [app[0] for app in app_list]
-    matches = get_close_matches(app_name, names, n=1, cutoff=0.4)
 
-    if matches:
-        for name, full_path in app_list:
-            if name == matches[0]:
-                return full_path
-
-    return None
+def clean_youtube_query(text):
+    words = ["play", "search", "on youtube", "youtube", "for"]
+    text = text.lower()
+    for w in words:
+        text = text.replace(w, "")
+    return text.strip()
 
 
 def execute_action(command, raw_text=None):
@@ -86,42 +98,53 @@ def execute_action(command, raw_text=None):
     # 🎵 MUSIC
     if command == "music":
         speak("Opening Spotify")
-        os.system("start spotify")
+        os.system("start spotify:")
         time.sleep(5)
         pyautogui.press("space")
         return True
 
-    # 🌐 GOOGLE
-    elif command == "google":
-        webbrowser.open("https://www.google.com")
-        speak("Opening Google")
+    # 🌐 GOOGLE SEARCH
+    elif command == "google_search":
+        if raw_text:
+            query = clean_google_query(raw_text)
+            webbrowser.open(f"https://www.google.com/search?q={query}")
+            speak(f"Searching {query}")
         return True
 
-    # ▶ YOUTUBE
-    elif command == "youtube":
-        webbrowser.open("https://www.youtube.com")
-        speak("Opening YouTube")
+    # ▶ YOUTUBE SEARCH
+    elif command == "youtube_search":
+        if raw_text:
+            query = clean_youtube_query(raw_text)
+            webbrowser.open(f"https://www.youtube.com/results?search_query={query}")
+            speak(f"Searching YouTube for {query}")
         return True
 
-    # 🔥 OPEN ANYTHING
+    # 🔥 OPEN ANYTHING (FINAL UNIVERSAL FIX)
     elif command == "open_app":
         if raw_text:
-            name = raw_text.replace("open", "").strip()
+            name = clean_name(raw_text)
 
-            app_path = find_app(name)
-            if app_path:
-                os.startfile(app_path)
-                return True
+            # ✅ STEP 1: SPECIAL APPS
+            for key in SPECIAL_APPS:
+                if key in name:
+                    speak(f"Opening {key}")
+                    os.system(f"start {SPECIAL_APPS[key]}")
+                    return True
 
-            result = os.system(f'start "" "{name}"')
+            # ✅ STEP 2: WINDOWS SHELL (VERY IMPORTANT)
+            result = os.system(f'start "" {name}')
             if result == 0:
+                speak(f"Opening {name}")
                 return True
 
+            # ✅ STEP 3: FILE / FOLDER
             path = find_path(name)
             if path:
+                speak(f"Opening {name}")
                 os.startfile(path)
                 return True
 
+            # 🌐 fallback
             webbrowser.open(f"https://www.google.com/search?q={name}")
             speak("Not found")
 
@@ -147,20 +170,16 @@ def execute_action(command, raw_text=None):
 
     # 📸 SCREENSHOT
     elif command == "screenshot":
-        downloads = os.path.join(os.path.expanduser("~"), "Downloads")
-        filename = f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-        path = os.path.join(downloads, filename)
-
+        path = os.path.join(os.path.expanduser("~"), "Downloads",
+                            f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
         img = pyautogui.screenshot()
         img.save(path)
-
         speak("Screenshot saved")
         return True
 
     # 🕒 TIME
     elif command == "time":
-        now = datetime.now().strftime("%I:%M %p")
-        speak(f"The time is {now}")
+        speak(datetime.now().strftime("%I:%M %p"))
         return True
 
     # ❌ EXIT
