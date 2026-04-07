@@ -11,7 +11,7 @@ from scipy.sparse import hstack
 import numpy as np
 
 
-# 🔥 SPLIT
+# SPLIT
 train_data, test_data = train_test_split(
     data,
     test_size=0.2,
@@ -28,7 +28,7 @@ X_test = [x[0] for x in test_data]
 y_test = [x[1] for x in test_data]
 
 
-# 🔥 VECTORIZERS (BEST CONFIG)
+# VECTORIZERS (BEST CONFIG)
 word_vectorizer = TfidfVectorizer(
     ngram_range=(1, 3),
     sublinear_tf=True,
@@ -53,14 +53,14 @@ X_test_vec = hstack([
 ])
 
 
-# 🔥 MODEL 1 (Logistic)
+# MODEL 1 (Logistic)
 model_lr = LogisticRegression(
     max_iter=1000,
     class_weight="balanced",
     C=2.0
 )
 
-# 🔥 MODEL 2 (SVM)
+# MODEL 2 (SVM)
 model_svc = LinearSVC(
     class_weight="balanced",
     C=1.2
@@ -71,7 +71,7 @@ model_lr.fit(X_train_vec, y_train)
 model_svc.fit(X_train_vec, y_train)
 
 
-# 🔥 ENSEMBLE PREDICTION
+# ENSEMBLE PREDICTION
 pred_lr = model_lr.predict(X_test_vec)
 pred_svc = model_svc.predict(X_test_vec)
 
@@ -87,14 +87,14 @@ for i in range(len(pred_lr)):
 y_pred = np.array(y_pred)
 
 
-# 🔥 EVALUATE
+# EVALUATE
 print("\n📊 Model Evaluation:")
 print("Accuracy:", round(accuracy_score(y_test, y_pred), 2))
 print("Precision:", round(precision_score(y_test, y_pred, average="weighted"), 2))
 print("F1 Score:", round(f1_score(y_test, y_pred, average="weighted"), 2))
 
 
-# 🔥 FINAL TRAIN ON FULL DATA
+# FINAL TRAIN ON FULL DATA
 full_data = expand_dataset(data)
 
 X_full = [x[0] for x in full_data]
@@ -109,7 +109,7 @@ model_lr.fit(X_full_vec, y_full)
 model_svc.fit(X_full_vec, y_full)
 
 
-# 🔥 SAVE BOTH MODELS
+# SAVE BOTH MODELS
 pickle.dump(model_lr, open("model_lr.pkl", "wb"))
 pickle.dump(model_svc, open("model_svc.pkl", "wb"))
 pickle.dump(word_vectorizer, open("word_vectorizer.pkl", "wb"))
